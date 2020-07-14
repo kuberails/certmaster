@@ -4,18 +4,27 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use tokio;
 
-#[derive(CustomResource, Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
 #[kube(apiextensions = "v1beta1")]
 #[kube(group = "certmaster.kuberails.com", version = "v1", namespaced)]
 pub struct CertIssuerSpec {
     domain_name: String,
-    dns_provider: DnsProvider,
+    dns_provider: DnsProviderSpec,
+    secret_name: Option<String>,
+    namespaces: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-struct DnsProvider {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct DnsProviderSpec {
+    provider: DnsProvider,
     key: String,
     secret_key: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+enum DnsProvider {
+    DigitalOcean,
+    Cloudflare,
 }
 
 #[tokio::main]
