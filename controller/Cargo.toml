@@ -1,0 +1,11 @@
+[package]
+name = "certmaster"
+version = "0.1.0"
+authors = ["Praveen Perera <praveen@avencera.com>"]
+edition = "2018"
+
+[dependencies]
+kube = "0.35"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
