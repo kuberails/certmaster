@@ -1,0 +1,14 @@
+apiVersion: certmaster.kuberails.com/v1
+kind: CertIssuer
+metadata:
+  name: com-ok-kuberails
+  namespace: kuberails
+spec:
+  domainName: praveenperera.com
+  namespaces:
+    - default
+    - praveen
+  dnsProvider:
+    provider: cloudflare
+    key: thisIsMyKey
+    secretKey: thisIsMySecretKey
