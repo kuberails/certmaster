@@ -26,3 +26,6 @@ log = "0.4"
 # error handling
 anyhow = "1.0"
 thiserror = "1.0"
+
+# validations
+rweb = { version = "0.5", features = ["openapi"] }
