@@ -11,10 +11,11 @@ use kube_runtime::watcher;
 use log::{info, warn};
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio;
 use tokio::task;
-use tokio::time::Duration;
+use tokio::{sync::RwLock, time::Duration};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Schema)]
 #[kube(group = "certmaster.kuberails.com", version = "v1", namespaced)]
@@ -53,8 +54,34 @@ enum Error {
     MissingObjectKey(&'static str),
 }
 
+#[derive(Debug)]
+struct State {
+    cert_issuers: Vec<CertIssuer>,
+    certs: Vec<Secret>,
+}
+
 struct Data {
     client: Client,
+    state: Arc<RwLock<State>>,
+}
+
+impl Data {
+    fn new(client: Client, state: Arc<RwLock<State>>) -> Data {
+        Data { client, state }
+    }
+}
+
+impl State {
+    fn new() -> State {
+        State {
+            cert_issuers: vec![],
+            certs: vec![],
+        }
+    }
+
+    async fn add_cert_issuer(state: &Arc<RwLock<State>>, cert_issuer: CertIssuer) -> () {
+        state.write().await.cert_issuers.push(cert_issuer);
+    }
 }
 
 #[tokio::main]
@@ -63,15 +90,21 @@ async fn main() -> anyhow::Result<()> {
 
     let client = Client::try_default().await?;
 
-    let cert_issuers: Api<CertIssuer> = Api::all(client.clone());
-    let cert_issuers2 = cert_issuers.clone();
+    let cert_issuer: Api<CertIssuer> = Api::all(client.clone());
+    let cert_issuer_clone = cert_issuer.clone();
+
+    let state = Arc::new(RwLock::new(State::new()));
 
     let certs: Api<Secret> = Api::all(client.clone());
 
-    let controller_task = task::spawn(async {
-        Controller::new(cert_issuers, ListParams::default().include_uninitialized())
+    let controller_task = task::spawn(async move {
+        Controller::new(cert_issuer, ListParams::default().include_uninitialized())
             .owns(certs, ListParams::default())
-            .run(reconcile, error_policy, Context::new(Data { client }))
+            .run(
+                reconcile,
+                error_policy,
+                Context::new(Data::new(client, state.clone())),
+            )
             .for_each(|res| async move {
                 match res {
                     Ok(o) => info!("reconciled {:?}", o),
@@ -81,8 +114,8 @@ async fn main() -> anyhow::Result<()> {
             .await;
     });
 
-    let watcher_task = task::spawn(async {
-        let watcher = watcher(cert_issuers2, ListParams::default());
+    let watcher_task = task::spawn(async move {
+        let watcher = watcher(cert_issuer_clone, ListParams::default());
         let _ = watcher
             .try_for_each(|event| async move {
                 match event {
@@ -100,11 +133,13 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn reconcile(cert_issuer: CertIssuer, ctx: Context<Data>) -> Result<ReconcilerAction, Error> {
-    info!("Cert Issuer Reconciled: {:#?}", cert_issuer);
-    // let client = ctx.get_ref().client.clone();
+    info!("Cert Issuer Reconciled: {:#?}", cert_issuer.meta().name);
+
+    let state = &ctx.get_ref().state;
+    State::add_cert_issuer(state, cert_issuer).await;
 
     Ok(ReconcilerAction {
-        requeue_after: Some(Duration::from_secs(30)),
+        requeue_after: Some(Duration::from_secs(60 * 10)),
     })
 }
 
@@ -120,14 +155,14 @@ fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
     }
 }
 
-// fn object_to_owner_reference<K: Meta>(meta: ObjectMeta) -> Result<OwnerReference, Error> {
-//     Ok(OwnerReference {
-//         api_version: K::API_VERSION.to_string(),
-//         kind: K::KIND.to_string(),
-//         name: meta.name.ok_or(Error::MissingObjectKey(".metadata.name"))?,
-//         uid: meta
-//             .uid
-//             .ok_or(Error::MissingObjectKey(".metadata.backtrace"))?,
-//         ..OwnerReference::default()
-//     })
-// }
+fn object_to_owner_reference<K: Meta>(meta: ObjectMeta) -> Result<OwnerReference, Error> {
+    Ok(OwnerReference {
+        api_version: K::API_VERSION.to_string(),
+        kind: K::KIND.to_string(),
+        name: meta.name.ok_or(Error::MissingObjectKey(".metadata.name"))?,
+        uid: meta
+            .uid
+            .ok_or(Error::MissingObjectKey(".metadata.backtrace"))?,
+        ..OwnerReference::default()
+    })
+}
