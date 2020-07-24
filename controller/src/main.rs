@@ -63,11 +63,11 @@ struct State {
 
 struct Data {
     client: Client,
-    state: &'static Arc<RwLock<State>>,
+    state: Arc<RwLock<State>>,
 }
 
 impl Data {
-    fn new(client: Client, state: &'static Arc<RwLock<State>>) -> Data {
+    fn new(client: Client, state: Arc<RwLock<State>>) -> Data {
         Data {
             client,
             state: state,
@@ -96,27 +96,29 @@ impl State {
     }
 }
 
-static GLOBAL_STATE: Lazy<Arc<RwLock<State>>> = Lazy::new(|| Arc::new(RwLock::new(State::new())));
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let client = Client::try_default().await?;
 
+    // for controller
     let cert_issuer: Api<CertIssuer> = Api::all(client.clone());
+    let context = Context::new(Data::new(
+        client.clone(),
+        Arc::new(RwLock::new(State::new())),
+    ));
+
+    // for watcher
     let cert_issuer_clone = cert_issuer.clone();
+    let context_clone = context.clone();
 
     let certs: Api<Secret> = Api::all(client.clone());
 
     let controller_task = task::spawn(async move {
         Controller::new(cert_issuer, ListParams::default().include_uninitialized())
             .owns(certs, ListParams::default())
-            .run(
-                reconcile,
-                error_policy,
-                Context::new(Data::new(client, &GLOBAL_STATE)),
-            )
+            .run(reconcile, error_policy, context)
             .for_each(|res| async move {
                 match res {
                     Ok(o) => info!("reconciled {:?}", o),
@@ -129,10 +131,10 @@ async fn main() -> anyhow::Result<()> {
     let watcher_task = task::spawn(async move {
         let watcher = watcher(cert_issuer_clone, ListParams::default());
         let _ = watcher
-            .try_for_each(|event| async move {
+            .try_for_each(|event| async {
                 match event {
                     watcher::Event::Deleted(cert_issuer) => {
-                        handle_delete(cert_issuer, &GLOBAL_STATE).await
+                        handle_delete(cert_issuer, context_clone.clone()).await;
                     }
                     _event => (),
                 }
@@ -157,9 +159,9 @@ async fn reconcile(cert_issuer: CertIssuer, ctx: Context<Data>) -> Result<Reconc
     })
 }
 
-async fn handle_delete(cert_issuer: CertIssuer, state: &'static Arc<RwLock<State>>) {
+async fn handle_delete(cert_issuer: CertIssuer, ctx: Context<Data>) {
     info!("Cert Issuer deleted: {:?}", cert_issuer);
-    State::delete_cert_issuer(state, cert_issuer).await;
+    State::delete_cert_issuer(&ctx.get_ref().state, cert_issuer).await;
 }
 
 fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
