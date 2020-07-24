@@ -8,8 +8,7 @@ use kube::{
 use kube_derive::CustomResource;
 use kube_runtime::controller::{Context, Controller, ReconcilerAction};
 use kube_runtime::watcher;
-use log::{debug, info, warn};
-use once_cell::sync::Lazy;
+use log::{info, warn};
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
