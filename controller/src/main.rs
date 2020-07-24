@@ -11,7 +11,6 @@ use kube_runtime::watcher;
 use log::{info, warn};
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use thiserror::Error;
 use tokio;
 use tokio::task;
@@ -54,45 +53,33 @@ enum Error {
     MissingObjectKey(&'static str),
 }
 
+type State = Context<RwLock<InnerState>>;
+
 #[derive(Debug)]
-struct State {
+struct InnerState {
     cert_issuers: Vec<CertIssuer>,
     certs: Vec<Secret>,
 }
 
-struct Data {
-    client: Client,
-    state: Arc<RwLock<State>>,
-}
-
-impl Data {
-    fn new(client: Client, state: Arc<RwLock<State>>) -> Data {
-        Data {
-            client,
-            state: state,
-        }
-    }
-}
-
-impl State {
-    fn new() -> State {
-        State {
+impl InnerState {
+    fn new() -> InnerState {
+        InnerState {
             cert_issuers: vec![],
             certs: vec![],
         }
     }
+}
 
-    async fn add_cert_issuer(state: &Arc<RwLock<State>>, cert_issuer: CertIssuer) -> () {
-        state.write().await.cert_issuers.push(cert_issuer);
-    }
+async fn add_cert_issuer(ctx: &State, cert_issuer: CertIssuer) -> () {
+    ctx.get_ref().write().await.cert_issuers.push(cert_issuer);
+}
 
-    async fn delete_cert_issuer(state: &Arc<RwLock<State>>, cert_issuer: CertIssuer) -> () {
-        state
-            .write()
-            .await
-            .cert_issuers
-            .retain(|ci| ci.meta().name != cert_issuer.meta().name);
-    }
+async fn delete_cert_issuer(ctx: &State, cert_issuer: CertIssuer) -> () {
+    ctx.get_ref()
+        .write()
+        .await
+        .cert_issuers
+        .retain(|ci| ci.meta().name != cert_issuer.meta().name);
 }
 
 #[tokio::main]
@@ -103,10 +90,7 @@ async fn main() -> anyhow::Result<()> {
 
     // for controller
     let cert_issuer: Api<CertIssuer> = Api::all(client.clone());
-    let context = Context::new(Data::new(
-        client.clone(),
-        Arc::new(RwLock::new(State::new())),
-    ));
+    let context = Context::new(RwLock::new(InnerState::new()));
 
     // for watcher
     let cert_issuer_clone = cert_issuer.clone();
@@ -147,23 +131,22 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn reconcile(cert_issuer: CertIssuer, ctx: Context<Data>) -> Result<ReconcilerAction, Error> {
+async fn reconcile(cert_issuer: CertIssuer, ctx: State) -> Result<ReconcilerAction, Error> {
     info!("Cert Issuer Reconciled: {:#?}", cert_issuer.meta().name);
 
-    let state = &ctx.get_ref().state;
-    State::add_cert_issuer(state, cert_issuer).await;
+    add_cert_issuer(&ctx, cert_issuer).await;
 
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(60 * 10)),
     })
 }
 
-async fn handle_delete(cert_issuer: CertIssuer, ctx: Context<Data>) {
+async fn handle_delete(cert_issuer: CertIssuer, ctx: State) {
     info!("Cert Issuer deleted: {:?}", cert_issuer);
-    State::delete_cert_issuer(&ctx.get_ref().state, cert_issuer).await;
+    delete_cert_issuer(&ctx, cert_issuer).await;
 }
 
-fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {
+fn error_policy(error: &Error, _ctx: State) -> ReconcilerAction {
     warn!("Error policy triggered: {:#?}", error);
 
     ReconcilerAction {
