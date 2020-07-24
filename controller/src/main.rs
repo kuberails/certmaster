@@ -8,7 +8,8 @@ use kube::{
 use kube_derive::CustomResource;
 use kube_runtime::controller::{Context, Controller, ReconcilerAction};
 use kube_runtime::watcher;
-use log::{info, warn};
+use log::{debug, info, warn};
+use once_cell::sync::Lazy;
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -62,12 +63,15 @@ struct State {
 
 struct Data {
     client: Client,
-    state: Arc<RwLock<State>>,
+    state: &'static Arc<RwLock<State>>,
 }
 
 impl Data {
-    fn new(client: Client, state: Arc<RwLock<State>>) -> Data {
-        Data { client, state }
+    fn new(client: Client, state: &'static Arc<RwLock<State>>) -> Data {
+        Data {
+            client,
+            state: state,
+        }
     }
 }
 
@@ -82,7 +86,17 @@ impl State {
     async fn add_cert_issuer(state: &Arc<RwLock<State>>, cert_issuer: CertIssuer) -> () {
         state.write().await.cert_issuers.push(cert_issuer);
     }
+
+    async fn delete_cert_issuer(state: &Arc<RwLock<State>>, cert_issuer: CertIssuer) -> () {
+        state
+            .write()
+            .await
+            .cert_issuers
+            .retain(|ci| ci.meta().name != cert_issuer.meta().name);
+    }
 }
+
+static GLOBAL_STATE: Lazy<Arc<RwLock<State>>> = Lazy::new(|| Arc::new(RwLock::new(State::new())));
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -93,8 +107,6 @@ async fn main() -> anyhow::Result<()> {
     let cert_issuer: Api<CertIssuer> = Api::all(client.clone());
     let cert_issuer_clone = cert_issuer.clone();
 
-    let state = Arc::new(RwLock::new(State::new()));
-
     let certs: Api<Secret> = Api::all(client.clone());
 
     let controller_task = task::spawn(async move {
@@ -103,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
             .run(
                 reconcile,
                 error_policy,
-                Context::new(Data::new(client, state.clone())),
+                Context::new(Data::new(client, &GLOBAL_STATE)),
             )
             .for_each(|res| async move {
                 match res {
@@ -119,7 +131,9 @@ async fn main() -> anyhow::Result<()> {
         let _ = watcher
             .try_for_each(|event| async move {
                 match event {
-                    watcher::Event::Deleted(cert_issuer) => handle_delete(cert_issuer),
+                    watcher::Event::Deleted(cert_issuer) => {
+                        handle_delete(cert_issuer, &GLOBAL_STATE).await
+                    }
                     _event => (),
                 }
                 Ok(())
@@ -143,8 +157,9 @@ async fn reconcile(cert_issuer: CertIssuer, ctx: Context<Data>) -> Result<Reconc
     })
 }
 
-fn handle_delete(cert_issuer: CertIssuer) {
-    info!("Cert Issuer deleted: {:?}", cert_issuer)
+async fn handle_delete(cert_issuer: CertIssuer, state: &'static Arc<RwLock<State>>) {
+    info!("Cert Issuer deleted: {:?}", cert_issuer);
+    State::delete_cert_issuer(state, cert_issuer).await;
 }
 
 fn error_policy(error: &Error, _ctx: Context<Data>) -> ReconcilerAction {

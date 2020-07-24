@@ -203,6 +203,7 @@ dependencies = [
  "kube-derive",
  "kube-runtime",
  "log 0.4.8",
+ "once_cell",
  "rweb",
  "serde",
  "serde_json",
