@@ -70,12 +70,13 @@ impl InnerState {
     }
 }
 
-async fn add_cert_issuer(ctx: &State, cert_issuer: CertIssuer) -> () {
-    ctx.get_ref().write().await.cert_issuers.push(cert_issuer);
+async fn add_cert_issuer(state: &State, cert_issuer: CertIssuer) -> () {
+    state.get_ref().write().await.cert_issuers.push(cert_issuer);
 }
 
-async fn delete_cert_issuer(ctx: &State, cert_issuer: CertIssuer) -> () {
-    ctx.get_ref()
+async fn delete_cert_issuer(state: &State, cert_issuer: CertIssuer) -> () {
+    state
+        .get_ref()
         .write()
         .await
         .cert_issuers
@@ -131,22 +132,22 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn reconcile(cert_issuer: CertIssuer, ctx: State) -> Result<ReconcilerAction, Error> {
+async fn reconcile(cert_issuer: CertIssuer, state: State) -> Result<ReconcilerAction, Error> {
     info!("Cert Issuer Reconciled: {:#?}", cert_issuer.meta().name);
 
-    add_cert_issuer(&ctx, cert_issuer).await;
+    add_cert_issuer(&state, cert_issuer).await;
 
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(60 * 10)),
     })
 }
 
-async fn handle_delete(cert_issuer: CertIssuer, ctx: State) {
+async fn handle_delete(cert_issuer: CertIssuer, state: State) {
     info!("Cert Issuer deleted: {:?}", cert_issuer);
-    delete_cert_issuer(&ctx, cert_issuer).await;
+    delete_cert_issuer(&state, cert_issuer).await;
 }
 
-fn error_policy(error: &Error, _ctx: State) -> ReconcilerAction {
+fn error_policy(error: &Error, _state: State) -> ReconcilerAction {
     warn!("Error policy triggered: {:#?}", error);
 
     ReconcilerAction {
