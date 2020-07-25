@@ -17,7 +17,7 @@ use tokio::task;
 use tokio::{sync::RwLock, time::Duration};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Schema)]
-#[kube(group = "certmaster.kuberails.com", version = "v1", namespaced)]
+#[kube(group = "certmaster.kuberails.com", version = "v1")]
 #[serde(rename_all = "camelCase")]
 pub struct CertIssuerSpec {
     domain_name: String,
