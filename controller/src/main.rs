@@ -1,8 +1,9 @@
 use futures::prelude::*;
 use k8s_openapi::api::core::v1::Secret;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
+use k8s_openapi::ByteString;
 use kube::{
-    api::{Api, ListParams, Meta},
+    api::{Api, ListParams, Meta, PostParams},
     Client,
 };
 use kube_derive::CustomResource;
@@ -49,32 +50,40 @@ enum DnsProvider {
 
 #[derive(Debug, Error)]
 enum Error {
+    #[error(transparent)]
+    KubeError(#[from] kube::error::Error),
     #[error("missing object key in {0})")]
     MissingObjectKey(&'static str),
 }
 
 type State = Context<RwLock<InnerState>>;
 
-#[derive(Debug)]
 struct InnerState {
+    client: Client,
     cert_issuers: Vec<CertIssuer>,
     certs: Vec<Secret>,
 }
 
 impl InnerState {
-    fn new() -> InnerState {
+    fn new(client: Client) -> InnerState {
         InnerState {
+            client: client,
             cert_issuers: vec![],
             certs: vec![],
         }
     }
 }
 
-async fn add_cert_issuer(state: &State, cert_issuer: CertIssuer) -> () {
-    state.get_ref().write().await.cert_issuers.push(cert_issuer);
+async fn add_cert_issuer(state: &State, cert_issuer: &CertIssuer) -> () {
+    state
+        .get_ref()
+        .write()
+        .await
+        .cert_issuers
+        .push(cert_issuer.clone());
 }
 
-async fn delete_cert_issuer(state: &State, cert_issuer: CertIssuer) -> () {
+async fn delete_cert_issuer(state: &State, cert_issuer: &CertIssuer) -> () {
     state
         .get_ref()
         .write()
@@ -91,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
 
     // for controller
     let cert_issuer: Api<CertIssuer> = Api::all(client.clone());
-    let context = Context::new(RwLock::new(InnerState::new()));
+    let context = Context::new(RwLock::new(InnerState::new(client.clone())));
 
     // for watcher
     let cert_issuer_clone = cert_issuer.clone();
@@ -101,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
 
     let controller_task = task::spawn(async move {
         Controller::new(cert_issuer, ListParams::default().include_uninitialized())
-            .owns(certs, ListParams::default())
+            .owns(certs.clone(), ListParams::default())
             .run(reconcile, error_policy, context)
             .for_each(|res| async move {
                 match res {
@@ -133,9 +142,37 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn reconcile(cert_issuer: CertIssuer, state: State) -> Result<ReconcilerAction, Error> {
-    info!("Cert Issuer Reconciled: {:#?}", cert_issuer.meta().name);
+    info!("Cert Issuer Reconciled: {:#?}", cert_issuer);
 
-    add_cert_issuer(&state, cert_issuer).await;
+    add_cert_issuer(&state, &cert_issuer).await;
+
+    let mut contents = std::collections::BTreeMap::new();
+    contents.insert(
+        "content".to_string(),
+        ByteString("hello".as_bytes().to_vec()),
+    );
+
+    let cert = Secret {
+        metadata: ObjectMeta {
+            name: cert_issuer.metadata.name.clone(),
+            namespace: Some("avencera".to_string()),
+            owner_references: Some(vec![OwnerReference {
+                controller: Some(true),
+                ..object_to_owner_reference::<CertIssuer>(cert_issuer.metadata.clone())?
+            }]),
+            ..ObjectMeta::default()
+        },
+        data: Some(contents),
+        ..Default::default()
+    };
+
+    let cert_api =
+        Api::<Secret>::namespaced(state.get_ref().read().await.client.clone(), "avencera");
+    let pp = PostParams::default();
+
+    let a = cert_api.create(&pp, &cert).await;
+
+    println!("DONE: {:#?}", a);
 
     Ok(ReconcilerAction {
         requeue_after: Some(Duration::from_secs(60 * 10)),
@@ -144,7 +181,7 @@ async fn reconcile(cert_issuer: CertIssuer, state: State) -> Result<ReconcilerAc
 
 async fn handle_delete(cert_issuer: CertIssuer, state: State) {
     info!("Cert Issuer deleted: {:?}", cert_issuer);
-    delete_cert_issuer(&state, cert_issuer).await;
+    delete_cert_issuer(&state, &cert_issuer).await;
 }
 
 fn error_policy(error: &Error, _state: State) -> ReconcilerAction {
