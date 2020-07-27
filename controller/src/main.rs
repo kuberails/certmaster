@@ -7,9 +7,9 @@ use kube::{
 };
 use kube_runtime::watcher;
 use log::{info, warn};
-use thiserror::Error;
 use tokio;
 use tokio::task;
+use tokio::task::JoinError;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let store = Store::new(client.clone());
     let certs: Api<Cert> = Api::all(client.clone());
 
-    tokio::join!(
+    let _ = tokio::join!(
         cert_issuer_watcher(cert_issuer, store.clone()),
         cert_watcher(certs, store)
     );
@@ -29,30 +29,30 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn cert_issuer_watcher(api: Api<CertIssuer>, store: Store) {
+async fn cert_issuer_watcher(api: Api<CertIssuer>, store: Store) -> Result<(), JoinError> {
     task::spawn(async move {
         let watcher = watcher(api, ListParams::default());
+
         let _ = watcher
             .try_for_each(|event| handle_cert_issuer_events(event, store.clone()))
             .await;
-
-        ()
-    });
+    })
+    .await
 }
 
-async fn cert_watcher(api: Api<Cert>, store: Store) {
+async fn cert_watcher(api: Api<Cert>, store: Store) -> Result<(), JoinError> {
     task::spawn(async move {
         let watcher = watcher(api, ListParams::default());
+
         let _ = watcher
             .try_for_each(|event| handle_cert_events(event, store.clone()))
             .await;
-
-        ()
-    });
+    })
+    .await
 }
 
 async fn handle_cert_issuer_events(
-    event: watcher::Event<CertIssuer>,
+    watcher: watcher::Event<CertIssuer>,
     store: Store,
 ) -> Result<(), watcher::Error> {
     Ok(())
