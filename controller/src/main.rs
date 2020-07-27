@@ -1,5 +1,5 @@
 use certmaster::cert_issuer::CertIssuer;
-use certmaster::certificate::Certificate;
+use certmaster::certificate::{self, Certificate};
 use certmaster::store::Store;
 use futures::prelude::*;
 use kube::{
@@ -60,7 +60,13 @@ async fn handle_cert_issuer_events(
     event: watcher::Event<CertIssuer>,
     store: Store,
 ) -> Result<(), watcher::Error> {
-    println!("CERT ISSUER: {:#?}", event);
+    match event {
+        watcher::Event::Applied(cert_issuer) => {
+            let _ = certificate::create(&store, &cert_issuer).await;
+            ()
+        }
+        _ => (),
+    }
 
     Ok(())
 }

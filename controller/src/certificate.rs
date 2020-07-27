@@ -10,7 +10,9 @@ use std::collections::BTreeMap;
 
 pub type Certificate = Secret;
 
-pub async fn create(store: Store, cert_issuer: CertIssuer) -> Result<Certificate, Error> {
+pub async fn create(store: &Store, cert_issuer: &CertIssuer) -> Result<Certificate, Error> {
+    let cert_issuer = cert_issuer.clone();
+
     let mut contents = BTreeMap::new();
     contents.insert(
         "content".to_string(),
@@ -39,7 +41,7 @@ pub async fn create(store: Store, cert_issuer: CertIssuer) -> Result<Certificate
 
     let cert = Certificate {
         metadata: ObjectMeta {
-            name: Some(format!("{}-cert", name)),
+            name: Some(name),
             namespace: Some("avencera".to_string()),
             owner_references: Some(vec![OwnerReference {
                 controller: Some(true),
