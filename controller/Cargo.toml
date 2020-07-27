@@ -30,6 +30,3 @@ thiserror = "1.0"
 
 # utils
 chrono = "0.4"
-
-# validations
-rweb = { version = "0.5", features = ["openapi"] }

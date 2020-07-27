@@ -12,19 +12,19 @@ pub type Certificate = Secret;
 
 pub async fn create(store: &Store, cert_issuer: &CertIssuer) -> Result<Certificate, Error> {
     let cert_issuer = cert_issuer.clone();
-
-    let mut contents = BTreeMap::new();
-    contents.insert(
-        "content".to_string(),
-        ByteString("hello".as_bytes().to_vec()),
-    );
-
     let name = cert_issuer
         .meta()
         .name
         .as_ref()
         .ok_or(Error::MissingObjectKey(".meta.name"))?
         .to_string();
+
+    let contents: BTreeMap<String, ByteString> = vec![(
+        "content".to_string(),
+        ByteString("hello".as_bytes().to_vec()),
+    )]
+    .into_iter()
+    .collect();
 
     let labels: BTreeMap<String, String> = vec![
         (
