@@ -1,5 +1,5 @@
 use crate::error::Error;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use k8s_openapi::Resource;
 use kube::api::Meta;
 use kube_derive::CustomResource;
