@@ -1,4 +1,5 @@
-use crate::crd::{Cert, CertIssuer};
+use crate::cert_issuer::CertIssuer;
+use crate::certificate::Certificate;
 use kube::api::Meta;
 use kube::Client;
 use std::sync::Arc;
@@ -18,7 +19,7 @@ struct ReadOnly {
 
 struct State {
     cert_issuers: Vec<CertIssuer>,
-    certs: Vec<Cert>,
+    certs: Vec<Certificate>,
 }
 
 impl Store {
@@ -36,11 +37,11 @@ impl Store {
         Store(Arc::new(inner))
     }
 
-    fn get_ref(&self) -> &Arc<InnerStore> {
+    pub fn get_ref(&self) -> &Arc<InnerStore> {
         &self.0
     }
 
-    fn get_client(&self) -> &Client {
+    pub fn get_client(&self) -> &Client {
         &self.get_ref().readonly.client
     }
 

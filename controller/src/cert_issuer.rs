@@ -1,9 +1,9 @@
-use k8s_openapi::api::core::v1::Secret;
+use crate::error::Error;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
+use k8s_openapi::Resource;
 use kube::api::Meta;
 use kube_derive::CustomResource;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
 #[kube(group = "certmaster.kuberails.com", version = "v1")]
@@ -34,24 +34,21 @@ enum DnsProvider {
     #[serde(rename = "cloudflare")]
     Cloudflare,
 }
-#[derive(Debug, Error)]
-enum Error {
-    #[error(transparent)]
-    KubeError(#[from] kube::error::Error),
-    #[error("missing object key in {0})")]
-    MissingObjectKey(&'static str),
-}
 
-fn object_to_owner_reference<K: Meta>(meta: ObjectMeta) -> Result<OwnerReference, Error> {
+pub fn owner_reference(cert_issuer: CertIssuer) -> Result<OwnerReference, Error> {
+    let meta = cert_issuer.meta().clone();
+
     Ok(OwnerReference {
-        api_version: K::API_VERSION.to_string(),
-        kind: K::KIND.to_string(),
-        name: meta.name.ok_or(Error::MissingObjectKey(".metadata.name"))?,
+        api_version: CertIssuer::API_VERSION.to_string(),
+        kind: CertIssuer::KIND.to_string(),
+        name: meta
+            .name
+            .ok_or(Error::MissingObjectKey(".metadata.name"))?
+            .to_string(),
         uid: meta
             .uid
-            .ok_or(Error::MissingObjectKey(".metadata.backtrace"))?,
+            .ok_or(Error::MissingObjectKey(".metadata.backtrace"))?
+            .to_string(),
         ..OwnerReference::default()
     })
 }
-
-pub type Cert = Secret;

@@ -1,12 +1,12 @@
-use certmaster::crd::{Cert, CertIssuer};
+use certmaster::cert_issuer::CertIssuer;
+use certmaster::certificate::Certificate;
 use certmaster::store::Store;
 use futures::prelude::*;
 use kube::{
-    api::{Api, ListParams, Meta},
+    api::{Api, ListParams},
     Client,
 };
 use kube_runtime::watcher;
-use log::{info, warn};
 use tokio;
 use tokio::task;
 use tokio::task::JoinError;
@@ -19,7 +19,8 @@ async fn main() -> anyhow::Result<()> {
 
     let cert_issuer: Api<CertIssuer> = Api::all(client.clone());
     let store = Store::new(client.clone());
-    let certs: Api<Cert> = Api::all(client.clone());
+
+    let certs: Api<Certificate> = Api::all(client.clone());
 
     let _ = tokio::join!(
         cert_issuer_watcher(cert_issuer, store.clone()),
@@ -40,9 +41,13 @@ async fn cert_issuer_watcher(api: Api<CertIssuer>, store: Store) -> Result<(), J
     .await
 }
 
-async fn cert_watcher(api: Api<Cert>, store: Store) -> Result<(), JoinError> {
+async fn cert_watcher(api: Api<Certificate>, store: Store) -> Result<(), JoinError> {
     task::spawn(async move {
-        let watcher = watcher(api, ListParams::default());
+        let lp = ListParams::default()
+            .timeout(60)
+            .labels("manager=certmaster.kuberails.com,certmaster.kuberails.com/certIssuer");
+
+        let watcher = watcher(api, lp);
 
         let _ = watcher
             .try_for_each(|event| handle_cert_events(event, store.clone()))
@@ -52,15 +57,19 @@ async fn cert_watcher(api: Api<Cert>, store: Store) -> Result<(), JoinError> {
 }
 
 async fn handle_cert_issuer_events(
-    watcher: watcher::Event<CertIssuer>,
+    event: watcher::Event<CertIssuer>,
     store: Store,
 ) -> Result<(), watcher::Error> {
+    println!("CERT ISSUER: {:#?}", event);
+
     Ok(())
 }
 
 async fn handle_cert_events(
-    event: watcher::Event<Cert>,
+    event: watcher::Event<Certificate>,
     store: Store,
 ) -> Result<(), watcher::Error> {
+    println!("CERT: {:#?}", event);
+
     Ok(())
 }
