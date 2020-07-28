@@ -70,6 +70,7 @@ async fn handle_cert_issuer_events(
             let res = certificate::cache_and_create_for_namespaces(&store, &cert_issuer).await;
 
             if let Ok(certificates) = res {
+                //TODO:
                 // save certificates to store
             }
             ()

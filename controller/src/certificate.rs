@@ -25,7 +25,7 @@ pub async fn cache_and_create_for_namespaces(
                 .spec
                 .namespaces
                 .iter()
-                .map(|ns| create_from_cached_cert(store, &cached_cert, &ns))
+                .map(|ns| create_from_cache(store, &cached_cert, &ns))
                 .collect::<FuturesUnordered<_>>()
                 .collect::<Vec<_>>()
                 .await
@@ -94,11 +94,7 @@ async fn create_cache(store: &Store, cert_issuer: &CertIssuer) -> Result<Certifi
     Ok(cert_api.create(&pp, &cert).await?)
 }
 
-async fn create_from_cached_cert(
-    store: &Store,
-    secret: &Secret,
-    ns: &str,
-) -> Result<Certificate, Error> {
+async fn create_from_cache(store: &Store, secret: &Secret, ns: &str) -> Result<Certificate, Error> {
     let secret = secret.clone();
 
     let mut labels = secret
