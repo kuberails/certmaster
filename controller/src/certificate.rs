@@ -1,7 +1,8 @@
 use crate::cert_issuer::{self, CertIssuer};
 use crate::error::Error;
 use crate::store::Store;
-use futures::future::{self};
+use futures::future::{self, Future};
+use futures::stream::{FuturesUnordered, StreamExt};
 use k8s_openapi::api::core::v1::Secret;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
 use k8s_openapi::ByteString;
@@ -18,13 +19,13 @@ async fn cache_and_create_for_namespaces(
 ) -> Result<Vec<Certificate>, Error> {
     match create_cache(&store, &cert_issuer).await {
         Ok(cached_cert) => {
-            let create_futures = cert_issuer
+            let created_certificates: Vec<Certificate> = cert_issuer
                 .spec
                 .namespaces
                 .iter()
-                .map(|ns| create_from_cached_cert(store, &cached_cert, &ns));
-
-            let created_certificates: Vec<Certificate> = future::join_all(create_futures)
+                .map(|ns| create_from_cached_cert(store, &cached_cert, &ns))
+                .collect::<FuturesUnordered<_>>()
+                .collect::<Vec<_>>()
                 .await
                 .into_iter()
                 .filter_map(Result::ok)
