@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 #[kube(group = "certmaster.kuberails.com", version = "v1")]
 #[serde(rename_all = "camelCase")]
 pub struct CertIssuerSpec {
-    domain_name: String,
-    dns_provider: DnsProviderSpec,
-    secret_name: Option<String>,
+    pub domain_name: String,
+    pub dns_provider: DnsProviderSpec,
+    pub secret_name: Option<String>,
     #[serde(default = "default_namespace")]
-    namespaces: Vec<String>,
+    pub namespaces: Vec<String>,
 }
 
 fn default_namespace() -> Vec<String> {
@@ -22,13 +22,13 @@ fn default_namespace() -> Vec<String> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-struct DnsProviderSpec {
-    provider: DnsProvider,
-    key: String,
-    secret_key: String,
+pub struct DnsProviderSpec {
+    pub provider: DnsProvider,
+    pub key: String,
+    pub secret_key: String,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-enum DnsProvider {
+pub enum DnsProvider {
     #[serde(rename = "digtalocean")]
     DigitalOcean,
     #[serde(rename = "cloudflare")]
