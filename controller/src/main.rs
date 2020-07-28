@@ -1,6 +1,6 @@
 use certmaster::cert_issuer::CertIssuer;
-use certmaster::certificate::{self, Certificate};
-use certmaster::error::Error;
+use certmaster::certificate::Certificate;
+use certmaster::consts::labels::{CACHED, CERT_ISSUER, MANAGED_BY_KEY, MANAGED_BY_VALUE};
 use certmaster::store::Store;
 use futures::prelude::*;
 use kube::{
@@ -44,9 +44,13 @@ async fn cert_issuer_watcher(api: Api<CertIssuer>, store: Store) -> Result<(), J
 
 async fn cert_watcher(api: Api<Certificate>, store: Store) -> Result<(), JoinError> {
     task::spawn(async move {
-        let lp = ListParams::default()
-            .timeout(60)
-            .labels("app.kubernetes.io/managed-by=certmaster.kuberails.com/v1,certmaster.kuberails.com/certIssuer");
+        let lp = ListParams::default().timeout(60).labels(&format!(
+            "{managed_by_key}={managed_by_value},{cert_issuer},{cached}!=true",
+            managed_by_key = MANAGED_BY_KEY,
+            managed_by_value = MANAGED_BY_VALUE,
+            cert_issuer = CERT_ISSUER,
+            cached = CACHED
+        ));
 
         let watcher = watcher(api, lp);
 
