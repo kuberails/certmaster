@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 pub type Certificate = Secret;
 
-async fn cache_and_create_for_namespaces(
+pub async fn cache_and_create_for_namespaces(
     store: &Store,
     cert_issuer: &CertIssuer,
 ) -> Result<Vec<Certificate>, Error> {
@@ -56,12 +56,11 @@ async fn create_cache(store: &Store, cert_issuer: &CertIssuer) -> Result<Certifi
 
     let cache_name = Uuid::new_v4().to_string();
 
-    let contents: BTreeMap<String, ByteString> = vec![(
-        "content".to_string(),
-        ByteString("hello".as_bytes().to_vec()),
-    )]
-    .into_iter()
-    .collect();
+    let contents: BTreeMap<String, ByteString> =
+        vec![("tls.crt", "tls.crt.data"), ("tls.key", "tls.key.data")]
+            .iter()
+            .map(|(key, value)| (key.to_string(), ByteString(value.as_bytes().to_vec())))
+            .collect();
 
     let labels: BTreeMap<String, String> = vec![
         (MANAGED_BY_KEY, MANAGED_BY_VALUE),

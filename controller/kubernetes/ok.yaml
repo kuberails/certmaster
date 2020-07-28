@@ -7,6 +7,8 @@ spec:
   namespaces:
     - default
     - praveen
+    - avencera
+    - doesnt-exist
   dnsProvider:
     provider: cloudflare
     key: thisIsMyKey

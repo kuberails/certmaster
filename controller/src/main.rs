@@ -1,5 +1,5 @@
 use certmaster::cert_issuer::CertIssuer;
-use certmaster::certificate::Certificate;
+use certmaster::certificate::{self, Certificate};
 use certmaster::consts::labels::{CACHED, CERT_ISSUER, MANAGED_BY_KEY, MANAGED_BY_VALUE};
 use certmaster::store::Store;
 use futures::prelude::*;
@@ -66,7 +66,14 @@ async fn handle_cert_issuer_events(
     store: Store,
 ) -> Result<(), watcher::Error> {
     match event {
-        watcher::Event::Applied(cert_issuer) => {}
+        watcher::Event::Applied(cert_issuer) => {
+            let res = certificate::cache_and_create_for_namespaces(&store, &cert_issuer).await;
+
+            if let Ok(certificates) = res {
+                // save certificates to store
+            }
+            ()
+        }
         _ => (),
     }
 
@@ -77,7 +84,7 @@ async fn handle_cert_events(
     event: watcher::Event<Certificate>,
     store: Store,
 ) -> Result<(), watcher::Error> {
-    println!("CERT: {:#?}", event);
+    println!("CERT: {:?}", event);
 
     Ok(())
 }
