@@ -14,6 +14,7 @@ pub struct InnerStore {
 }
 
 struct ReadOnly {
+    namespace: String,
     client: Client,
 }
 
@@ -29,8 +30,10 @@ impl Store {
             certs: vec![],
         };
 
+        let namespace = std::env::var("NAMESPACE").unwrap_or("kuberails".to_string());
+
         let inner = InnerStore {
-            readonly: ReadOnly { client },
+            readonly: ReadOnly { client, namespace },
             state: RwLock::new(state),
         };
 
@@ -42,7 +45,15 @@ impl Store {
     }
 
     pub fn get_client(&self) -> &Client {
-        &self.get_ref().readonly.client
+        &self.get_read_only().client
+    }
+
+    pub fn get_namespace(&self) -> &String {
+        &self.get_read_only().namespace
+    }
+
+    fn get_read_only(&self) -> &ReadOnly {
+        &self.get_ref().readonly
     }
 
     async fn add_cert_issuer(&self, cert_issuer: &CertIssuer) -> () {

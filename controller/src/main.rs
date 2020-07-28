@@ -1,5 +1,6 @@
 use certmaster::cert_issuer::CertIssuer;
 use certmaster::certificate::{self, Certificate};
+use certmaster::consts::labels::{CACHED, CERT_ISSUER, MANAGED_BY_KEY, MANAGED_BY_VALUE};
 use certmaster::store::Store;
 use futures::prelude::*;
 use kube::{
@@ -43,9 +44,13 @@ async fn cert_issuer_watcher(api: Api<CertIssuer>, store: Store) -> Result<(), J
 
 async fn cert_watcher(api: Api<Certificate>, store: Store) -> Result<(), JoinError> {
     task::spawn(async move {
-        let lp = ListParams::default()
-            .timeout(60)
-            .labels("manager=certmaster.kuberails.com,certmaster.kuberails.com/certIssuer");
+        let lp = ListParams::default().timeout(60).labels(&format!(
+            "{managed_by_key}={managed_by_value},{cert_issuer},{cached}!=true",
+            managed_by_key = MANAGED_BY_KEY,
+            managed_by_value = MANAGED_BY_VALUE,
+            cert_issuer = CERT_ISSUER,
+            cached = CACHED
+        ));
 
         let watcher = watcher(api, lp);
 
@@ -62,7 +67,12 @@ async fn handle_cert_issuer_events(
 ) -> Result<(), watcher::Error> {
     match event {
         watcher::Event::Applied(cert_issuer) => {
-            let _ = certificate::create(&store, &cert_issuer).await;
+            let res = certificate::cache_and_create_for_namespaces(&store, &cert_issuer).await;
+
+            if let Ok(certificates) = res {
+                //TODO:
+                // save certificates to store
+            }
             ()
         }
         _ => (),
@@ -75,7 +85,7 @@ async fn handle_cert_events(
     event: watcher::Event<Certificate>,
     store: Store,
 ) -> Result<(), watcher::Error> {
-    println!("CERT: {:#?}", event);
+    println!("CERT: {:?}", event);
 
     Ok(())
 }
