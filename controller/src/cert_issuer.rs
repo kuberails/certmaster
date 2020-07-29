@@ -36,17 +36,19 @@ pub enum DnsProvider {
 }
 
 pub fn owner_reference(cert_issuer: &CertIssuer) -> Result<OwnerReference, Error> {
-    let meta = cert_issuer.meta().clone();
-
     Ok(OwnerReference {
         api_version: CertIssuer::API_VERSION.to_string(),
         kind: CertIssuer::KIND.to_string(),
-        name: meta
+        name: cert_issuer
+            .meta()
             .name
+            .clone()
             .ok_or(Error::MissingObjectKey(".metadata.name"))?
             .to_string(),
-        uid: meta
+        uid: cert_issuer
+            .meta()
             .uid
+            .clone()
             .ok_or(Error::MissingObjectKey(".metadata.backtrace"))?
             .to_string(),
         ..OwnerReference::default()
