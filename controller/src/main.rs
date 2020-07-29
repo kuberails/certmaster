@@ -67,7 +67,7 @@ async fn handle_cert_issuer_events(
 ) -> Result<(), watcher::Error> {
     match event {
         watcher::Event::Applied(cert_issuer) => {
-            let res = certificate::cache_and_create_for_namespaces(&store, &cert_issuer).await;
+            let res = certificate::cache_and_create_for_namespaces(&store, cert_issuer).await;
 
             if let Ok(certificates) = res {
                 //TODO:

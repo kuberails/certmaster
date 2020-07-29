@@ -35,7 +35,7 @@ pub enum DnsProvider {
     Cloudflare,
 }
 
-pub fn owner_reference(cert_issuer: CertIssuer) -> Result<OwnerReference, Error> {
+pub fn owner_reference(cert_issuer: &CertIssuer) -> Result<OwnerReference, Error> {
     let meta = cert_issuer.meta().clone();
 
     Ok(OwnerReference {

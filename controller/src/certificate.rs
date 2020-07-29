@@ -17,7 +17,7 @@ pub type Certificate = Secret;
 
 pub async fn cache_and_create_for_namespaces(
     store: &Store,
-    cert_issuer: &CertIssuer,
+    cert_issuer: CertIssuer,
 ) -> Result<Vec<Certificate>, Error> {
     match create_cache(&store, &cert_issuer).await {
         Ok(cached_cert) => {
@@ -40,7 +40,6 @@ pub async fn cache_and_create_for_namespaces(
 }
 
 async fn create_cache(store: &Store, cert_issuer: &CertIssuer) -> Result<Certificate, Error> {
-    let cert_issuer = cert_issuer.clone();
     let cert_issuer_name = cert_issuer
         .meta()
         .name
@@ -49,9 +48,9 @@ async fn create_cache(store: &Store, cert_issuer: &CertIssuer) -> Result<Certifi
         .to_string();
 
     let cert_name = cert_issuer
-        .clone()
         .spec
         .secret_name
+        .clone()
         .unwrap_or_else(|| cert_issuer_name.clone());
 
     let cache_name = Uuid::new_v4().to_string();
@@ -95,16 +94,14 @@ async fn create_cache(store: &Store, cert_issuer: &CertIssuer) -> Result<Certifi
 }
 
 async fn create_from_cache(store: &Store, secret: &Secret, ns: &str) -> Result<Certificate, Error> {
-    let secret = secret.clone();
-
     let mut labels = secret
-        .clone()
         .metadata
         .labels
+        .clone()
         .unwrap_or_else(|| BTreeMap::new());
 
     labels.remove(CACHED);
-    labels.insert(CACHE_NAME.to_string(), secret.clone().name());
+    labels.insert(CACHE_NAME.to_string(), secret.name());
 
     let name = labels
         .get(CERT_NAME)
@@ -115,12 +112,12 @@ async fn create_from_cache(store: &Store, secret: &Secret, ns: &str) -> Result<C
         metadata: ObjectMeta {
             name: Some(name),
             namespace: Some(ns.to_string()),
-            owner_references: secret.metadata.owner_references,
+            owner_references: secret.metadata.owner_references.clone(),
             labels: Some(labels),
             ..ObjectMeta::default()
         },
         type_: Some(TLS.to_string()),
-        data: secret.data,
+        data: secret.data.clone(),
         ..Default::default()
     };
 
