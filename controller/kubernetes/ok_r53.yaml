@@ -1,0 +1,12 @@
+apiVersion: certmaster.kuberails.com/v1
+kind: CertIssuer
+metadata:
+  name: com-route-53-kuberails
+  namespace: kuberails
+spec:
+  domainName: praveenperera.com
+  dnsProvider:
+    provider: route53
+    accessKey: thisIsMyKey
+    secretAccessKey: thisIsMySecretKey
+    region: us-east-1

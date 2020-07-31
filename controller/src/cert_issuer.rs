@@ -26,6 +26,7 @@ fn default_namespace() -> Vec<String> {
 pub enum DnsProvider {
     DigitalOcean(BasicAuth),
     Cloudflare(BasicAuth),
+    Route53(Route53),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -33,6 +34,16 @@ pub enum DnsProvider {
 pub struct BasicAuth {
     key: String,
     secret_key: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Route53 {
+    access_key: String,
+    secret_access_key: String,
+    region: String,
+    profile: Option<String>,
+    hosted_zone_id: Option<String>,
 }
 
 pub fn owner_reference(cert_issuer: &CertIssuer) -> Result<OwnerReference, Error> {

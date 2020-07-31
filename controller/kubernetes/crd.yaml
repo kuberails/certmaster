@@ -44,12 +44,13 @@ spec:
                   type: object
                   required: ["provider"]
                   properties:
-                    provider:
-                      type: string
-                    key:
-                      type: string
-                    secretKey:
-                      type: string
+                    provider: { "type": "string" }
+                    key: { "type": "string" }
+                    secretKey: { "type": "string" }
+                    accessKey: { "type": "string" }
+                    secretAccessKey: { "type": "string" }
+                    region: { "type": "string" }
+                    hostedZoneId: { "type": "string" }
                   oneOf:
                     - properties:
                         provider:
@@ -59,6 +60,10 @@ spec:
                         provider:
                           enum: ["cloudflare"]
                       required: ["provider", "key", "secretKey"]
+                    - properties:
+                        provider:
+                          enum: ["route53"]
+                      required: ["accessKey", "secretAccessKey", "region"]
                 secretName:
                   type: string
                   nullable: true
