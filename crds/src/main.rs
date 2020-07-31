@@ -49,7 +49,7 @@ pub struct Route53 {
 
 fn main() -> anyhow::Result<()> {
     let spec = CertIssuerSpec {
-        domain_name: "praveenperera.com".to_string(),
+        domain_name: "kuberails.com".to_string(),
         dns_provider: DnsProvider::DigitalOcean(BasicAuth {
             key: "key".to_string(),
             secret_key: "secretKey".to_string(),

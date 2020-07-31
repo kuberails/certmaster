@@ -51,15 +51,25 @@ spec:
                     secretAccessKey: { "type": "string" }
                     region: { "type": "string" }
                     hostedZoneId: { "type": "string" }
+                    authToken: { "type": "string" }
+                    apiEmail: { "type": "string" }
+                    apiKey: { "type": "string" }
                   oneOf:
                     - properties:
                         provider:
                           enum: ["digitalocean"]
-                      required: ["provider", "key", "secretKey"]
+                      required: ["provider", "authToken"]
                     - properties:
                         provider:
                           enum: ["cloudflare"]
-                      required: ["provider", "key", "secretKey"]
+                        apiKey: {}
+                        apiEmail: {}
+                      required: ["apiKey", "apiEmail"]
+                    - properties:
+                        provider:
+                          enum: ["cloudflare"]
+                        apiToken: {}
+                      required: ["apiToken"]
                     - properties:
                         provider:
                           enum: ["route53"]

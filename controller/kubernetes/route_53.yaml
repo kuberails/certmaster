@@ -1,10 +1,10 @@
 apiVersion: certmaster.kuberails.com/v1
 kind: CertIssuer
 metadata:
-  name: com-route-53-kuberails
-  namespace: kuberails
+  name: com-route53-kuberails
+  namespace: praveen
 spec:
-  domainName: praveenperera.com
+  domainName: kuberails.com
   dnsProvider:
     provider: route53
     accessKey: thisIsMyKey

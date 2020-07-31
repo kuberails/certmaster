@@ -1,11 +1,11 @@
 apiVersion: certmaster.kuberails.com/v1
 kind: CertIssuer
 metadata:
-  name: com-ok2-kuberails
+  name: com-cloudflare-kuberails
   namespace: praveen
 spec:
   domainName: kuberails.com
   dnsProvider:
     provider: cloudflare
-    key: thisIsMyKey
-    secretKey: thisIsMySecretKey
+    apiKey: thisIsMyKey
+    apiEmail: clouflare@gmail.com

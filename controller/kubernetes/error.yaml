@@ -2,12 +2,12 @@ apiVersion: certmaster.kuberails.com/v1
 kind: CertIssuer
 metadata:
   name: com-error-kuberails
-  namespace: kuberails
+  namespace: praveen
 spec:
-  domainName: praveenperera.com
+  domainName: kuberails.com
   namespaces:
     - default
-    - praveen
+    - kuberails
   dnsProvider:
     provider: CloudFlare
     key: thisIsMyKey

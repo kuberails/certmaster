@@ -1,15 +1,14 @@
 apiVersion: certmaster.kuberails.com/v1
 kind: CertIssuer
 metadata:
-  name: com-ok-kuberails
+  name: com-digitalocean-kuberails
 spec:
-  domainName: praveenperera.com
+  domainName: kuberails.com
   namespaces:
     - default
-    - praveen
+    - kuberails
     - avencera
     - doesnt-exist
   dnsProvider:
-    provider: cloudflare
-    key: thisIsMyKey
-    secretKey: thisIsMySecretKey
+    provider: digitalocean
+    authToken: "DO_TOKEN_GOES_HERE"
