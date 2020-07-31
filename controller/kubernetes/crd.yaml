@@ -35,29 +35,35 @@ spec:
               type: object
             spec:
               description: "Issuer"
-              required:
-                - domainName
-                - dnsProvider
+              required: ["domainName", "dnsProvider"]
               type: object
               properties:
                 domainName:
                   type: string
                 dnsProvider:
                   type: object
+                  required: ["provider"]
                   properties:
                     provider:
                       type: string
-                      enum:
-                        - digtalocean
-                        - cloudflare
                     key:
                       type: string
                     secretKey:
                       type: string
+                  oneOf:
+                    - properties:
+                        provider:
+                          enum: ["digitalocean"]
+                      required: ["provider", "key", "secretKey"]
+                    - properties:
+                        provider:
+                          enum: ["cloudflare"]
+                      required: ["provider", "key", "secretKey"]
                 secretName:
                   type: string
                   nullable: true
                 namespaces:
                   type: array
+                  nullable: true
                   items:
                     type: string

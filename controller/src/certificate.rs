@@ -105,7 +105,7 @@ async fn create_from_cache(store: &Store, secret: &Secret, ns: &str) -> Result<C
 
     let name = labels
         .get(CERT_NAME)
-        .map(|c| c.to_string())
+        .map(&String::to_string)
         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
     let cert = Certificate {

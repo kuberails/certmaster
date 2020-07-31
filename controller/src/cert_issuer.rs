@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct CertIssuerSpec {
     pub domain_name: String,
-    pub dns_provider: DnsProviderSpec,
+    pub dns_provider: DnsProvider,
     pub secret_name: Option<String>,
     #[serde(default = "default_namespace")]
     pub namespaces: Vec<String>,
@@ -21,18 +21,18 @@ fn default_namespace() -> Vec<String> {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct DnsProviderSpec {
-    pub provider: DnsProvider,
-    pub key: String,
-    pub secret_key: String,
-}
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(tag = "provider")]
+#[serde(rename_all = "lowercase")]
 pub enum DnsProvider {
-    #[serde(rename = "digtalocean")]
-    DigitalOcean,
-    #[serde(rename = "cloudflare")]
-    Cloudflare,
+    DigitalOcean(BasicAuth),
+    Cloudflare(BasicAuth),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BasicAuth {
+    key: String,
+    secret_key: String,
 }
 
 pub fn owner_reference(cert_issuer: &CertIssuer) -> Result<OwnerReference, Error> {

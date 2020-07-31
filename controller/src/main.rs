@@ -69,7 +69,7 @@ async fn handle_cert_issuer_events(
         watcher::Event::Applied(cert_issuer) => {
             let res = certificate::cache_and_create_for_namespaces(&store, cert_issuer).await;
 
-            if let Ok(certificates) = res {
+            if let Ok(_certificates) = res {
                 //TODO:
                 // save certificates to store
             }
@@ -83,7 +83,7 @@ async fn handle_cert_issuer_events(
 
 async fn handle_cert_events(
     event: watcher::Event<Certificate>,
-    store: Store,
+    _store: Store,
 ) -> Result<(), watcher::Error> {
     println!("CERT: {:?}", event);
 

@@ -1,22 +1,20 @@
-use kube::{
-    api::{Api, CustomResource, ListParams, Meta, Resource, WatchEvent},
-    runtime::Informer,
-    Client,
-};
+use anyhow;
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube_derive::CustomResource;
 use rweb::openapi::Entity;
+use rweb::openapi::Schema;
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Schema)]
-#[kube(group = "certmaster.kuberails.com", version = "v1", namespaced)]
+#[kube(group = "certmaster.kuberails.com", version = "v1")]
 #[serde(rename_all = "camelCase")]
 pub struct CertIssuerSpec {
-    domain_name: String,
-    dns_provider: DnsProviderSpec,
-    secret_name: Option<String>,
+    pub domain_name: String,
+    pub dns_provider: DnsProvider,
+    pub secret_name: Option<String>,
     #[serde(default = "default_namespace")]
-    namespaces: Vec<String>,
+    pub namespaces: Vec<String>,
 }
 
 fn default_namespace() -> Vec<String> {
@@ -24,60 +22,37 @@ fn default_namespace() -> Vec<String> {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Schema)]
-#[serde(rename_all = "camelCase")]
-struct DnsProviderSpec {
-    provider: DnsProvider,
-    key: String,
-    secret_key: String,
+#[serde(tag = "provider")]
+#[serde(rename_all = "lowercase")]
+pub enum DnsProvider {
+    DigitalOcean(BasicAuth),
+    Cloudflare(BasicAuth),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Schema)]
-enum DnsProvider {
-    #[serde(rename = "digtalocean")]
-    DigitalOcean,
-    #[serde(rename = "cloudflare")]
-    Cloudflare,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Default, Schema)]
-struct Person {
-    name: String,
-}
-
-#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(apiextensions = "v1beta1")] // remove this once schemas is added
-#[kube(group = "certmaster.kuberails.com", version = "v1", namespaced)]
-pub struct CertIssuerSpec {
-    domain_name: String,
-    dns_provider: DnsProviderSpec,
-    secret_name: Option<String>,
-    #[serde(default = "default_namespace")]
-    namespaces: Vec<String>,
-}
-
-fn default_namespace() -> Vec<String> {
-    vec!["default".to_string()]
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct DnsProviderSpec {
-    provider: DnsProvider,
+#[serde(rename_all = "camelCase")]
+pub struct BasicAuth {
     key: String,
     secret_key: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(untagged)]
-enum DnsProvider {
-    DigitalOcean,
-    Cloudflare,
-}
+fn main() -> anyhow::Result<()> {
+    let spec = CertIssuerSpec {
+        domain_name: "praveenperera.com".to_string(),
+        dns_provider: DnsProvider::DigitalOcean(BasicAuth {
+            key: "key".to_string(),
+            secret_key: "secretKey".to_string(),
+        }),
+        secret_name: Some("secret+name".to_string()),
+        namespaces: vec!["default".to_string()],
+    };
 
-fn main() -> () {
-    env_logger::init();
     let crd = CertIssuer::crd();
     let schema = <CertIssuerSpec as Entity>::describe();
 
     println!("CRD: \n{}\n", serde_yaml::to_string(&crd)?);
-    println!("SCHEMA: \n{}\n", serde_yaml::to_string(&schema)?);
+    println!("\nSCHEMA: \n{}\n", serde_yaml::to_string(&schema)?);
+    println!("\nSPEC: \n{}\n", serde_yaml::to_string(&spec)?);
+
+    Ok(())
 }
