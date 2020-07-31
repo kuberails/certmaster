@@ -66,9 +66,7 @@ spec:
                       required: ["accessKey", "secretAccessKey", "region"]
                 secretName:
                   type: string
-                  nullable: true
                 namespaces:
                   type: array
-                  nullable: true
                   items:
                     type: string
