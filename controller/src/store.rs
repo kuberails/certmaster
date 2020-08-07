@@ -5,8 +5,13 @@ use kube::Client;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-#[derive(Clone)]
 pub struct Store(Arc<InnerStore>);
+
+impl Clone for Store {
+    fn clone(&self) -> Self {
+        Store(Arc::clone(&self.0))
+    }
+}
 
 pub struct InnerStore {
     readonly: ReadOnly,
